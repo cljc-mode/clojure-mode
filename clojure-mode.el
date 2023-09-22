@@ -429,30 +429,12 @@ If JUSTIFY is non-nil, justify as well as fill the paragraph."
 ;;; #_ comments font-locking
 ;; Code heavily borrowed from Slime.
 ;; https://github.com/slime/slime/blob/master/contrib/slime-fontifying-fu.el#L186
-(defvar clojure--comment-macro-regexp
+(defvar clojure-comment-regexp
   (rx (seq (+ (seq "#_" (* " ")))) (group-n 1 (not (any " "))))
   "Regexp matching the start of a comment sexp.
 The beginning of match-group 1 should be before the sexp to be
 marked as a comment.  The end of sexp is found with
 `clojure-forward-logical-sexp'.")
-
-(defvar clojure--reader-and-comment-regexp
-  (rx (or (seq (+ (seq "#_" (* " ")))
-               (group-n 1 (not (any " "))))
-          (seq (group-n 1 "(comment" symbol-end))))
-  "Regexp matching both `#_' macro and a comment sexp." )
-
-(defcustom clojure-comment-regexp clojure--comment-macro-regexp
-  "Comment mode.
-
-The possible values for this variable are keywords indicating
-what is considered a comment (affecting font locking).
-
-    - Reader macro `#_' only - the default
-    - Reader macro `#_' and `(comment)'"
-  :type '(choice (const :tag "Reader macro `#_' and `(comment)'" clojure--reader-and-comment-regexp)
-                 (other :tag "Reader macro `#_' only" clojure--comment-macro-regexp))
-  :package-version '(clojure-mode . "5.7.0"))
 
 (defun clojure--search-comment-macro-internal (limit)
   "Search for a comment forward stopping at LIMIT."
