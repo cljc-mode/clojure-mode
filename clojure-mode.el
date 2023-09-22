@@ -88,11 +88,6 @@
     (lm-version (or load-file-name buffer-file-name)))
   "The current version of `clojure-mode'.")
 
-(defface clojure-keyword-face
-  '((t (:inherit font-lock-constant-face)))
-  "Face used to font-lock Clojure keywords (:something)."
-  :package-version '(clojure-mode . "3.0.0"))
-
 (defface clojure-character-face
   '((t (:inherit font-lock-string-face)))
   "Face used to font-lock Clojure character literals."
@@ -790,14 +785,14 @@ any number of matches of `clojure--sym-forbidden-rest-chars'."))
       ;; keywords: {:oneword/ve/yCom|pLex.stu-ff 0}
       (,(concat "\\(:\\{1,2\\}\\)\\(" clojure--keyword-sym-regexp "?\\)\\(/\\)"
                 "\\(" clojure--keyword-sym-regexp "\\)")
-       (1 'clojure-keyword-face)
+       (1 'font-lock-builtin-face)
        (2 font-lock-type-face)
-       ;; (2 'clojure-keyword-face)
+       ;; (2 'font-lock-builtin-face)
        (3 'default)
-       (4 'clojure-keyword-face))
+       (4 'font-lock-builtin-face))
       (,(concat "\\(:\\{1,2\\}\\)\\(" clojure--keyword-sym-regexp "\\)")
-       (1 'clojure-keyword-face)
-       (2 'clojure-keyword-face))
+       (1 'font-lock-builtin-face)
+       (2 'font-lock-builtin-face))
 
       ;; type-hints: #^oneword
       (,(concat "\\(#?\\^\\)\\(" clojure--sym-regexp "?\\)\\(/\\)\\(" clojure--sym-regexp "\\)")
