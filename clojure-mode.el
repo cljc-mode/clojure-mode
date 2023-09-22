@@ -698,12 +698,6 @@ any number of matches of `clojure--sym-forbidden-rest-chars'."))
           t)
          "\\>")
        1 font-lock-keyword-face)
-      ;; Macros similar to let, when, and while
-      (,(rx symbol-start
-            (or "let" "when" "while") "-"
-            (1+ (or (syntax word) (syntax symbol)))
-            symbol-end)
-       0 font-lock-keyword-face)
       (,(concat
          "\\<"
          (regexp-opt
@@ -721,6 +715,13 @@ any number of matches of `clojure--sym-forbidden-rest-chars'."))
           t)
          "\\>")
        0 font-lock-builtin-face)
+      ;; LG: Not sure if I ever liked this
+      ;; ;; Macros similar to let, when, and while
+      ;; (,(rx symbol-start
+      ;;       (or "let" "when" "while") "-"
+      ;;       (1+ (or (syntax word) (syntax symbol)))
+      ;;       symbol-end)
+      ;;  0 font-lock-keyword-face)
       ;; Dynamic variables - *something* or @*something*
       (,(concat "\\(?:\\<\\|/\\)@?\\(\\*" clojure--sym-regexp "\\*\\)\\>")
        1 font-lock-variable-name-face)
