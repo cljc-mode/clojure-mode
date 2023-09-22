@@ -88,11 +88,6 @@
     (lm-version (or load-file-name buffer-file-name)))
   "The current version of `clojure-mode'.")
 
-(defface clojure-character-face
-  '((t (:inherit font-lock-string-face)))
-  "Face used to font-lock Clojure character literals."
-  :package-version '(clojure-mode . "3.0.0"))
-
 (defcustom clojure-indent-style 'always-align
   "Indentation style to use for function forms and macro forms.
 There are two cases of interest configured by this variable.
@@ -761,14 +756,6 @@ any number of matches of `clojure--sym-forbidden-rest-chars'."))
           '("true" "false" "nil") t)
          "\\>")
        0 font-lock-constant-face)
-      ;; Character literals - \1, \a, \newline, \u0000
-      (,(rx (group "\\" (or any
-                            "newline" "space" "tab" "formfeed" "backspace"
-                            "return"
-                            (: "u" (= 4 (char "0-9a-fA-F")))
-                            (: "o" (repeat 1 3 (char "0-7")))))
-            (or (not word) word-boundary))
-       1 'clojure-character-face)
       ;; lambda arguments - %, %&, %1, %2, etc
       ;; must come after character literals for \% to be handled properly
       ("\\<%[&1-9]?" (0 font-lock-variable-name-face))
