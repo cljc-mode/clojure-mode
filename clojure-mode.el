@@ -571,7 +571,7 @@ any number of matches of `clojure--sym-forbidden-rest-chars'."))
       ;; Type definition
       (,(concat "(\\(?:clojure.core/\\)?\\("
                 (regexp-opt '("defstruct" "deftype" "defprotocol"
-                              "defrecord"))
+                              "defrecord")) ;; LG: why no definterface?
                 ;; type declarations
                 "\\)\\>"
                 ;; Any whitespace
