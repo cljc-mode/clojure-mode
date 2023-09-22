@@ -743,10 +743,7 @@ any number of matches of `clojure--sym-forbidden-rest-chars'."))
                          (+ (or (syntax symbol) (syntax word)))) "`")
        (1 'font-lock-constant-face prepend))
       ;; Highlight escaped characters in strings.
-      (clojure-font-lock-escaped-chars 0 'bold prepend)
-      ;; Highlight grouping constructs in regular expressions
-      (clojure-font-lock-regexp-groups
-       (1 'font-lock-regexp-grouping-construct prepend))))
+      (clojure-font-lock-escaped-chars 0 'bold prepend)))
   "Default expressions to highlight in Clojure mode.")
 
 (defun clojure-font-lock-syntactic-face-function (state)
@@ -799,8 +796,6 @@ highlighted region)."
 (defun clojure-font-lock-setup ()
   "Configures font-lock for editing Clojure code."
   (setq-local font-lock-multiline t)
-  (add-to-list 'font-lock-extend-region-functions
-               #'clojure-font-lock-extend-region-def t)
   (setq font-lock-defaults
         '(clojure-font-lock-keywords    ; keywords
           nil nil
@@ -809,43 +804,6 @@ highlighted region)."
           (font-lock-mark-block-function . mark-defun)
           (font-lock-syntactic-face-function
            . clojure-font-lock-syntactic-face-function))))
-
-(defun clojure-font-lock-def-at-point (point)
-  "Range between the top-most def* and the fourth element after POINT.
-Note that this means that there is no guarantee of proper font
-locking in def* forms that are not at top level."
-  (goto-char point)
-  (ignore-errors
-    (beginning-of-defun-raw))
-
-  (let ((beg-def (point)))
-    (when (and (not (= point beg-def))
-               (looking-at "(def"))
-      (ignore-errors
-        ;; move forward as much as possible until failure (or success)
-        (forward-char)
-        (dotimes (_ 4)
-          (forward-sexp)))
-      (cons beg-def (point)))))
-
-(defun clojure-font-lock-extend-region-def ()
-  "Set region boundaries to include the first four elements of def* forms."
-  (let ((changed nil))
-    (let ((def (clojure-font-lock-def-at-point font-lock-beg)))
-      (when def
-        (cl-destructuring-bind (def-beg . def-end) def
-          (when (and (< def-beg font-lock-beg)
-                     (< font-lock-beg def-end))
-            (setq font-lock-beg def-beg
-                  changed t)))))
-    (let ((def (clojure-font-lock-def-at-point font-lock-end)))
-      (when def
-        (cl-destructuring-bind (def-beg . def-end) def
-          (when (and (< def-beg font-lock-end)
-                     (< font-lock-end def-end))
-            (setq font-lock-end def-end
-                  changed t)))))
-    changed))
 
 (defun clojure--font-locked-as-string-p (&optional regexp)
   "Non-nil if the char before point is font-locked as a string.
@@ -869,38 +827,6 @@ BOUND denotes a buffer position to limit the search."
       (setq found (clojure--font-locked-as-string-p)))
     found))
 
-(defun clojure-font-lock-regexp-groups (bound)
-  "Highlight grouping constructs in regular expression.
-
-BOUND denotes the maximum number of characters (relative to the
-point) to check."
-  (let ((found nil))
-    (while (and (not found)
-                (re-search-forward (eval-when-compile
-                                     (concat
-                                      ;; A group may start using several alternatives:
-                                      "\\(\\(?:"
-                                      ;; 1. (? special groups
-                                      "(\\?\\(?:"
-                                      ;; a) non-capturing group (?:X)
-                                      ;; b) independent non-capturing group (?>X)
-                                      ;; c) zero-width positive lookahead (?=X)
-                                      ;; d) zero-width negative lookahead (?!X)
-                                      "[:=!>]\\|"
-                                      ;; e) zero-width positive lookbehind (?<=X)
-                                      ;; f) zero-width negative lookbehind (?<!X)
-                                      "<[=!]\\|"
-                                      ;; g) named capturing group (?<name>X)
-                                      "<[[:alnum:]]+>"
-                                      "\\)\\|" ;; end of special groups
-                                      ;; 2. normal capturing groups (
-                                      ;; 3. we also highlight alternative
-                                      ;; separarators |, and closing parens )
-                                      "[|()]"
-                                      "\\)\\)"))
-                                   bound t))
-      (setq found (clojure--font-locked-as-string-p 'regexp)))
-    found))
 
 ;; Docstring positions
 (put 'ns 'clojure-doc-string-elt 2)
