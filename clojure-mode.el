@@ -572,17 +572,7 @@ any number of matches of `clojure--sym-forbidden-rest-chars'."))
                               "defstruct"
                               ;; clojure.test
                               "deftest"
-                              "deftest-"
-                              ;; clojure.logic
-                              "defne"
-                              "defnm"
-                              "defnu"
-                              "defnc"
-                              "defna"
-                              ;; Third party
-                              "deftask"
-                              "defstate"
-                              "defproject"))
+                              "deftest-"))
                 "\\)\\>")
        (1 font-lock-keyword-face))
       ;; Top-level variable definition
