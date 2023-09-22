@@ -698,23 +698,6 @@ any number of matches of `clojure--sym-forbidden-rest-chars'."))
           t)
          "\\>")
        1 font-lock-keyword-face)
-      (,(concat
-         "\\<"
-         (regexp-opt
-          '("*1" "*2" "*3" "*agent*"
-            "*allow-unresolved-vars*" "*assert*" "*clojure-version*"
-            "*command-line-args*" "*compile-files*"
-            "*compile-path*" "*data-readers*" "*default-data-reader-fn*"
-            "*e" "*err*" "*file*" "*flush-on-newline*"
-            "*in*" "*macro-meta*" "*math-context*" "*ns*" "*out*"
-            "*print-dup*" "*print-length*" "*print-level*"
-            "*print-meta*" "*print-readably*"
-            "*read-eval*" "*source-path*"
-            "*unchecked-math*"
-            "*use-context-classloader*" "*warn-on-reflection*")
-          t)
-         "\\>")
-       0 font-lock-builtin-face)
       ;; LG: Not sure if I ever liked this
       ;; ;; Macros similar to let, when, and while
       ;; (,(rx symbol-start
@@ -732,9 +715,6 @@ any number of matches of `clojure--sym-forbidden-rest-chars'."))
           '("true" "false" "nil") t)
          "\\>")
        0 font-lock-constant-face)
-      ;; lambda arguments - %, %&, %1, %2, etc
-      ;; must come after character literals for \% to be handled properly
-      ("\\<%[&1-9]?" (0 font-lock-variable-name-face))
       ;; namespace definitions: (ns foo.bar)
       (,(concat "(\\<ns\\>[ \r\n\t]*"
                 ;; Possibly metadata, shorthand and/or longhand
@@ -756,38 +736,11 @@ any number of matches of `clojure--sym-forbidden-rest-chars'."))
        (1 'font-lock-builtin-face)
        (2 'font-lock-builtin-face))
 
-      ;; type-hints: #^oneword
-      (,(concat "\\(#?\\^\\)\\(" clojure--sym-regexp "?\\)\\(/\\)\\(" clojure--sym-regexp "\\)")
-       (1 'default)
-       (2 font-lock-type-face)
-       (3 'default)
-       (4 'default))
-      (,(concat "\\(#?\\^\\)\\(" clojure--sym-regexp "\\)")
-       (1 'default)
-       (2 font-lock-type-face))
-
-      ;; clojure symbols not matched by the previous regexps; influences CIDER's
-      ;; dynamic syntax highlighting (CDSH). See https://git.io/vxEEA:
-      (,(concat "\\(" clojure--sym-regexp "?\\)\\(/\\)\\(" clojure--sym-regexp "\\)")
-       (1 font-lock-type-face)
-       ;; 2nd and 3th matching groups can be font-locked to `nil' or `default'.
-       ;; CDSH seems to kick in only for functions and variables referenced w/o
-       ;; writing their namespaces.
-       (2 nil)
-       (3 nil))
-      (,(concat "\\(" clojure--sym-regexp "\\)")
-       ;; this matching group must be font-locked to `nil' otherwise CDSH breaks.
-       (1 nil))
-
       ;; #_ and (comment ...) macros.
       (clojure--search-comment-macro 1 font-lock-comment-face t)
       ;; Highlight `code` marks, just like `elisp'.
       (,(rx "`" (group-n 1 (optional "#'")
                          (+ (or (syntax symbol) (syntax word)))) "`")
-       (1 'font-lock-constant-face prepend))
-      ;; Highlight [[var]] comments
-      (,(rx "[[" (group-n 1 (optional "#'")
-                          (+ (or (syntax symbol) (syntax word)))) "]]")
        (1 'font-lock-constant-face prepend))
       ;; Highlight escaped characters in strings.
       (clojure-font-lock-escaped-chars 0 'bold prepend)
