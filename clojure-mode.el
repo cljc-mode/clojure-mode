@@ -1491,6 +1491,12 @@ If PATH is nil, use the path to the file backing the current buffer."
   (goto-char (point-min))
   (clojure-insert-ns-form-at-point))
 
+;; For temporary CIDER support
+(defconst clojure--prettify-symbols-alist nil)
+
+(defun clojure-find-ns ()
+  (clojure-expected-ns))
+
 
 ;;; Sexp navigation
 (defun clojure--looking-at-non-logical-sexp ()
