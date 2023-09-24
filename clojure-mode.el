@@ -163,7 +163,7 @@ The prefixes are used to generate the correct namespace."
     (modify-syntax-entry ?~ "'" table)
     (modify-syntax-entry ?^ "'" table)
     (modify-syntax-entry ?@ "'" table)
-    (modify-syntax-entry ?? "_ p" table) ; ? is a prefix outside symbols
+;;    (modify-syntax-entry ?? "_ p" table) ; ? is a prefix outside symbols - LG: this broke my indentation impl, error on (scan-sexps ... -1)
     (modify-syntax-entry ?# "_ p" table) ; # is allowed inside keywords (#399)
     (modify-syntax-entry ?' "_ p" table) ; ' is allowed anywhere but the start of symbols
 
