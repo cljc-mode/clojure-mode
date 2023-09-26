@@ -1015,6 +1015,9 @@ symbol."
 (defconst clojure--prettify-symbols-alist nil)
 
 (defun clojure-find-ns ()
+  ;; TODO: Cider implemented this as form search, first backward then
+  ;; forward (?)... should bring back. However cider also depends on
+  ;; "clojure-expected-ns" so both is needed
   (clojure-expected-ns))
 
 (defun clojure-find-def ()
