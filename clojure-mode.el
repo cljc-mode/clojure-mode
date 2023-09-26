@@ -374,6 +374,66 @@ The beginning of match-group 1 should be before the sexp to be
 marked as a comment.  The end of sexp is found with
 `clojure-forward-logical-sexp'.")
 
+;; Navigation
+(defun clojure-skip-meta ()
+  "If the expression at point is a metadata annotation, skip it.  Repeat."
+  (while (looking-at "[[:space:]]*\\^[[:space:]]*")
+    (goto-char (match-end 0))
+    (forward-sexp)))
+
+(defun clojure-skip-comment ()
+  "If the expression at point is a #_ comment form, skip it,
+including the entire commented form"
+  (when (looking-at "#_")
+    (goto-char (match-end 0)) ;; after comment literal
+    (clojure-forward-exp t)))
+
+(defun clojure-forward-tagged-literal ()
+  (when (looking-at (concat "#[[:space:]]*"
+			    (concat "[^_]" ;; otherwise its reader comment
+				    clojure--sym-regexp)))
+    (goto-char (match-end 0))
+    (clojure-forward-exp)
+    t))
+
+(defun clojure-forward-namespaced-map ()
+  (when (looking-at (concat "\\(""#:"
+			    clojure--keyword-sym-regexp
+			    "[[:space:]]*" "\\)"
+			    "{"))
+    (goto-char (match-end 1))
+    (forward-sexp)
+    t))
+
+(defun clojure-skip-whitespace ()
+  (when (looking-at "[[:space:]]+")
+    (goto-char (match-end 0))))
+
+(defun clojure-forward-exp (&optional skip-comment)
+  (clojure-skip-meta) ;; can skip whitespace by itself
+  (clojure-skip-whitespace)
+  (when skip-comment
+    (clojure-skip-comment))
+  (or
+   (clojure-forward-tagged-literal)
+   (clojure-forward-namespaced-map)
+   (forward-sexp)))
+
+(defun clojure-backward-exp-1 ()
+  (let* ((beginning-of-current (scan-sexps (point) -1))
+	 (end-of-current (scan-sexps beginning-of-current 1))
+	 found)
+    (while (progn
+	     (ignore-error scan-error
+	       (let ((start (scan-sexps (point) -1)))
+		 (when start
+		   (goto-char start)
+		   (clojure-forward-exp nil)
+		   (when (= (point) end-of-current)
+		     (goto-char start)
+		     (setq found start)))))))
+    (goto-char found)))
+
 (defun clojure--search-comment-macro-internal (limit)
   "Search for a comment forward stopping at LIMIT."
   (when (search-forward-regexp clojure-comment-regexp limit t)
@@ -770,10 +830,6 @@ BOUND denotes a buffer position to limit the search."
           (replace-match (clojure-docstring-fill-prefix))))
     (lisp-indent-line)))
 
-(defun clojure-skip-whitespace ()
-  (forward-sexp)
-  (backward-sexp))
-
 (defconst clojure-method-body-indent-2
   '(defrecord deftype reify extend-type extend-protocol)
   "Forms that have a method body on nesting level 2")
@@ -948,6 +1004,18 @@ If PATH is nil, use the path to the file backing the current buffer."
 
 (defun clojure-find-ns ()
   (clojure-expected-ns))
+
+(defun clojure-forward-logical-sexp (&optional n)
+  (unless n (setq n 1))
+  (if (< n 0)
+      (clojure-backward-logical-sexp (- n))
+    (clojure-forward-exp t)))
+
+(defun clojure-backward-logical-sexp (&optional n)
+  (unless n (setq n 1))
+  (if (< n 0)
+      (clojure-forward-logical-sexp (- n))
+    (clojure-backward-exp-1)))
 
 ;;; ClojureScript
 (defconst clojurescript-font-lock-keywords
