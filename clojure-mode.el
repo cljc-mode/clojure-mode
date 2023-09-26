@@ -87,19 +87,6 @@
     (lm-version (or load-file-name buffer-file-name)))
   "The current version of `clojure-mode'.")
 
-(defcustom clojure-docstring-fill-column fill-column
-  "Value of `fill-column' to use when filling a docstring."
-  :type 'integer
-  :safe 'integerp)
-
-(defcustom clojure-docstring-fill-prefix-width 2
-  "Width of `fill-prefix' when filling a docstring.
-The default value conforms with the de facto convention for
-Clojure docstrings, aligning the second line with the opening
-double quotes on the third column."
-  :type 'integer
-  :safe 'integerp)
-
 (defcustom clojure-omit-space-between-tag-and-delimiters '(?\[ ?\{ ?\()
   "Allowed opening delimiter characters after a reader literal tag.
 For example, \[ is allowed in :db/id[:db.part/user]."
@@ -226,7 +213,6 @@ instead of to `clojure-mode-map'."
   "Set up initial buffer-local variables for Clojure mode."
   (add-to-list 'imenu-generic-expression '(nil clojure-match-next-def 0))
   (setq-local indent-tabs-mode nil)
-  (setq-local paragraph-ignore-fill-prefix t)
   (setq-local outline-regexp ";;;;* ")
   (setq-local outline-level 'lisp-outline-level)
   (setq-local comment-start ";")
@@ -235,11 +221,7 @@ instead of to `clojure-mode-map'."
   (setq-local comment-column 40)
   (setq-local comment-use-syntax t)
   (setq-local multibyte-syntax-as-symbol t)
-  (setq-local electric-pair-skip-whitespace 'chomp)
-  (setq-local electric-pair-open-newline-between-pairs nil)
-  (setq-local fill-paragraph-function #'clojure-fill-paragraph)
-  (setq-local adaptive-fill-function #'clojure-adaptive-fill-function)
-  (setq-local normal-auto-fill-function #'clojure-auto-fill-function)
+
   (setq-local comment-start-skip
               "\\(\\(^\\|[^\\\\\n]\\)\\(\\\\\\\\\\)*\\)\\(;+\\|#|\\) *")
   (setq-local indent-line-function #'clojure-indent-line)
@@ -248,14 +230,27 @@ instead of to `clojure-mode-map'."
   (setq-local parse-sexp-ignore-comments t)
   (setq-local open-paren-in-column-0-is-defun-start nil))
 
-(defsubst clojure-in-docstring-p ()
-  "Check whether point is in a docstring."
-  (let ((ppss (syntax-ppss)))
-    ;; are we in a string?
-    (when (nth 3 ppss)
-      ;; check font lock at the start of the string
-      (eq (get-text-property (nth 8 ppss) 'face)
-          'font-lock-doc-face))))
+(defconst clojure-docstring-syms
+  '(ns defn defn- defprotocol defmulti defmacro def definline)
+  "Symbols that precede a naming expr and a docstr")
+
+(defun clojure-in-docstring-p ()
+  (save-excursion
+    (let ((state (syntax-ppss)))
+      (when (elt state 3)
+	(backward-up-list 1 t t)
+	(let ((start (point)))
+	  (goto-char (1+ (elt state 1)))
+	  (let ((sym (intern (clojure-next-sym ""))))
+	    (when (memq sym clojure-docstring-syms)
+	      (clojure-forward-exp)
+	      (clojure-skip-whitespace)
+	      (eq (point) start))))))))
+
+(defun clojure-indent-line ()
+  (if (clojure-in-docstring-p)
+      (indent-relative) ;; aka fundamental mode
+    (lisp-indent-line)))
 
 ;;;###autoload
 (define-derived-mode clojure-mode prog-mode "Clojure"
@@ -264,18 +259,7 @@ instead of to `clojure-mode-map'."
 \\{clojure-mode-map}"
   (clojure-mode-variables)
   (clojure-font-lock-setup)
-  (add-hook 'paredit-mode-hook #'clojure-paredit-setup)
-  ;; `electric-layout-post-self-insert-function' prevents indentation in strings
-  ;; and comments, force indentation of non-inlined docstrings:
-  (add-hook 'electric-indent-functions
-            (lambda (_char) (if (and (clojure-in-docstring-p)
-                                     ;; make sure we're not dealing with an inline docstring
-                                     ;; e.g. (def foo "inline docstring" bar)
-                                     (save-excursion
-                                       (beginning-of-line-text)
-                                       (eq (get-text-property (point) 'face)
-                                           'font-lock-doc-face)))
-                                'do-indent))))
+  (add-hook 'paredit-mode-hook #'clojure-paredit-setup))
 
 (defcustom clojure-verify-major-mode t
   "If non-nil, warn when activating the wrong `major-mode'."
@@ -311,57 +295,6 @@ This could cause problems.
                  problem)))))
 
 (add-hook 'clojure-mode-hook #'clojure--check-wrong-major-mode)
-
-(defsubst clojure-docstring-fill-prefix ()
-  "The prefix string used by `clojure-fill-paragraph'.
-It is simply `clojure-docstring-fill-prefix-width' number of spaces."
-  (make-string clojure-docstring-fill-prefix-width ? ))
-
-(defun clojure-adaptive-fill-function ()
-  "Clojure adaptive fill function.
-This only takes care of filling docstring correctly."
-  (when (clojure-in-docstring-p)
-    (clojure-docstring-fill-prefix)))
-
-(defun clojure-fill-paragraph (&optional justify)
-  "Like `fill-paragraph', but can handle Clojure docstrings.
-If JUSTIFY is non-nil, justify as well as fill the paragraph."
-  (if (clojure-in-docstring-p)
-      (let ((paragraph-start
-             (concat paragraph-start
-                     "\\|\\s-*\\([(:\"[]\\|~@\\|`(\\|#'(\\)"))
-            (paragraph-separate
-             (concat paragraph-separate "\\|\\s-*\".*[,\\.]$"))
-            (fill-column (or clojure-docstring-fill-column fill-column))
-            (fill-prefix (clojure-docstring-fill-prefix)))
-        ;; we are in a string and string start pos (8th element) is non-nil
-        (let* ((beg-doc (nth 8 (syntax-ppss)))
-               (end-doc (save-excursion
-                          (goto-char beg-doc)
-                          (or (ignore-errors (forward-sexp) (point))
-                              (point-max)))))
-          (save-restriction
-            (narrow-to-region beg-doc end-doc)
-            (fill-paragraph justify))))
-    (let ((paragraph-start (concat paragraph-start
-                                   "\\|\\s-*\\([(:\"[]\\|`(\\|#'(\\)"))
-          (paragraph-separate
-           (concat paragraph-separate "\\|\\s-*\".*[,\\.[]$")))
-      (or (fill-comment-paragraph justify)
-          (fill-paragraph justify))
-      ;; Always return `t'
-      t)))
-
-(defun clojure-auto-fill-function ()
-  "Clojure auto-fill function."
-  ;; Check if auto-filling is meaningful.
-  (let ((fc (current-fill-column)))
-    (when (and fc (> (current-column) fc))
-      (let ((fill-column (if (clojure-in-docstring-p)
-                             clojure-docstring-fill-column
-                           fill-column))
-            (fill-prefix (clojure-adaptive-fill-function)))
-        (do-auto-fill)))))
 
 
 ;;; #_ comments font-locking
@@ -808,28 +741,7 @@ BOUND denotes a buffer position to limit the search."
     found))
 
 
-;; Docstring positions
-(put 'ns 'clojure-doc-string-elt 2)
-(put 'def 'clojure-doc-string-elt 2)
-(put 'defn 'clojure-doc-string-elt 2)
-(put 'defn- 'clojure-doc-string-elt 2)
-(put 'defmulti 'clojure-doc-string-elt 2)
-(put 'defmacro 'clojure-doc-string-elt 2)
-(put 'definline 'clojure-doc-string-elt 2)
-(put 'defprotocol 'clojure-doc-string-elt 2)
-
 ;;; Indentation
-(defun clojure-indent-line ()
-  "Indent current line as Clojure code."
-  (if (clojure-in-docstring-p)
-      (save-excursion
-        (beginning-of-line)
-        (when (and (looking-at "^\\s-*")
-                   (<= (string-width (match-string-no-properties 0))
-                       (string-width (clojure-docstring-fill-prefix))))
-          (replace-match (clojure-docstring-fill-prefix))))
-    (lisp-indent-line)))
-
 (defconst clojure-method-body-indent-2
   '(defrecord deftype reify extend-type extend-protocol)
   "Forms that have a method body on nesting level 2")
@@ -933,12 +845,6 @@ BOUND denotes a buffer position to limit the search."
 	(clojure-method-body-p state 3 clojure-method-body-indent-3))
     (lisp-indent-defform state indent-point))))
 
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
-;; Better docstring filling for clojure-mode
-;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun clojure-string-start (&optional regex)
   "Return the position of the \" that begins the string at point.
