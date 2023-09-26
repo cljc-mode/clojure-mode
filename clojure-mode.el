@@ -406,7 +406,7 @@ including the entire commented form"
     t))
 
 (defun clojure-skip-whitespace ()
-  (when (looking-at "[[:space:]]+")
+  (when (looking-at "[[:space:]\n\\,]+")
     (goto-char (match-end 0))))
 
 (defun clojure-forward-exp (&optional skip-comment)
