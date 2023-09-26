@@ -999,11 +999,32 @@ If PATH is nil, use the path to the file backing the current buffer."
   (goto-char (point-min))
   (clojure-insert-ns-form-at-point))
 
+(defun clojure-next-sym (re)
+  "Returns next symbol if it is starting with re, skips over
+metadata and comments, whitespace.  Moves the point after the
+symbol."
+  (clojure-skip-whitespace)
+  (clojure-skip-comment)
+  (clojure-skip-meta)
+  (if (looking-at-p re)
+      (let ((start (point)))
+	(forward-sexp)
+	(buffer-substring start (point)))))
+
 ;; For temporary CIDER support
 (defconst clojure--prettify-symbols-alist nil)
 
 (defun clojure-find-ns ()
   (clojure-expected-ns))
+
+(defun clojure-find-def ()
+  "Find the var declaration macro and symbol name of the current form.
+Returns a list pair, e.g. (\"defn\" \"abc\") or (\"deftest\" \"some-test\")."
+  (save-excursion
+    (forward-char) ;; step into form
+    (let ((m1 (clojure-next-sym "def")))
+      (if m1
+	  (list m1 (clojure-next-sym ""))))))
 
 (defun clojure-forward-logical-sexp (&optional n)
   (unless n (setq n 1))
