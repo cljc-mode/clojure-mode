@@ -308,63 +308,82 @@ marked as a comment.  The end of sexp is found with
 `clojure-forward-logical-sexp'.")
 
 ;; Navigation
-(defun clojure-skip-meta ()
-  "If the expression at point is a metadata annotation, skip it.  Repeat."
-  (while (looking-at "[[:space:]]*\\^[[:space:]]*")
-    (goto-char (match-end 0))
-    (forward-sexp)))
+(defun clojure--skip-regex (re &optional match)
+  "If the point matches the regexp, move after the match"
+  (when (looking-at re)
+    (goto-char (match-end (or match 0)))))
+
+(defconst clojure-whitespace
+  (rx (+ (or (any space "," "\n")
+	     (seq ";" (* any) line-end))))
+  "At least one space space, comma, newline, or EOL delimited comment")
+
+(defun clojure-skip-whitespace ()
+  (clojure--skip-regex clojure-whitespace))
 
 (defun clojure-skip-comment ()
   "If the expression at point is a #_ comment form, skip it,
 including the entire commented form"
-  (when (looking-at "#_")
-    (goto-char (match-end 0)) ;; after comment literal
-    (clojure-forward-exp t)))
-
-(defun clojure-forward-tagged-literal ()
-  (when (looking-at (concat "#[[:space:]]*"
-			    (concat "[^_]" ;; otherwise its reader comment
-				    clojure--sym-regexp)))
-    (goto-char (match-end 0))
-    (clojure-forward-exp)
+  (when (clojure--skip-regex "#_")
+    (clojure-forward-exp t)
     t))
 
-(defun clojure-forward-namespaced-map ()
-  (when (looking-at (concat "\\(""#:"
-			    clojure--keyword-sym-regexp
-			    "[[:space:]]*" "\\)"
-			    "{"))
-    (goto-char (match-end 1))
+(defun clojure-skip-meta ()
+  "If the expression at point is a metadata annotation, skip it."
+  (when (clojure--skip-regex "\\^")
+    (clojure-forward-exp t)
+    t))
+
+(defun clojure-skip-optionals (&optional skip-comment)
+  "Skip whitespace, meta, comment until no more"
+  (clojure-skip-whitespace)
+  (while (progn (or (when (clojure-skip-meta)
+		      (clojure-skip-whitespace))
+		    (when (and skip-comment
+			       (clojure-skip-comment))
+		      (clojure-skip-whitespace))))))
+
+(defun clojure-skip-tagged-literal ()
+  (when (clojure--skip-regex "\\(#\\)[^_]" 1) ;; immediate _ would be comment
+    (clojure-forward-exp t)))
+
+(defun clojure-skip-namespaced-map ()
+  (when (clojure--skip-regex (concat "\\(""#:"
+				     clojure--keyword-sym-regexp
+				     clojure-whitespace "*" "\\)"
+				     "{")
+			     1)
     (forward-sexp)
     t))
 
-(defun clojure-skip-whitespace ()
-  (when (looking-at "[[:space:]\n\\,]+")
-    (goto-char (match-end 0))))
-
 (defun clojure-forward-exp (&optional skip-comment)
-  (clojure-skip-meta) ;; can skip whitespace by itself
-  (clojure-skip-whitespace)
-  (when skip-comment
-    (clojure-skip-comment))
+  (clojure-skip-optionals skip-comment)
   (or
-   (clojure-forward-tagged-literal)
-   (clojure-forward-namespaced-map)
-   (forward-sexp)))
+   (clojure-skip-tagged-literal)
+   (clojure-skip-namespaced-map)
+   (and (forward-sexp) t)))
 
 (defun clojure-backward-exp-1 ()
   (let* ((beginning-of-current (scan-sexps (point) -1))
 	 (end-of-current (scan-sexps beginning-of-current 1))
-	 found)
+	 found
+	 (backtrack-depth 3) ;; enough for sth. crazy like
+	                     ;; ^:a #_^:a #_abc d #:a{:b 42}
+	 )
     (while (progn
 	     (ignore-error scan-error
 	       (let ((start (scan-sexps (point) -1)))
 		 (when start
 		   (goto-char start)
-		   (clojure-forward-exp nil)
-		   (when (= (point) end-of-current)
+		   (clojure-forward-exp t)
+		   (if (= (point) end-of-current)
+		       (progn
+			 (goto-char start)
+			 (setq found start)
+			 t)
+		     (setq backtrack-depth (1- backtrack-depth))
 		     (goto-char start)
-		     (setq found start)))))))
+		     (not (eq backtrack-depth 0))))))))
     (goto-char found)))
 
 (defun clojure--search-comment-macro-internal (limit)
