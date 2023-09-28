@@ -846,8 +846,10 @@ BOUND denotes a buffer position to limit the search."
     (goto-char declbeg)
     (forward-char)
     (clojure-skip-whitespace)
-    (let ((s (symbol-at-point)))
-      (or (string-prefix-p "def" (symbol-name (symbol-at-point)))
+    (let* ((s (symbol-at-point))
+	   (sn (symbol-name s)))
+      (or (string-prefix-p "def" sn)
+	  (string-prefix-p "with-" sn)
 	  (memq s clojure-defform)))))
 
 (defun clojure-datastructure-body-p (state)
